@@ -1,14 +1,20 @@
 import http from "http";
-import fs from "fs";
+import fs from "fs/promises";
+import url from "url";
+import path from "path";
 import genRandomNum from "./utils.js";
 import dotenv from "dotenv";
 dotenv.config();
 
 const PORT = process.env.PORT;
 
+//Get current path
+const __filename = url.fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 console.log(genRandomNum());
 
-function requestListener(req, res) {
+async function requestListener(req, res) {
   console.log(req);
 
   const url = req.url;
@@ -16,41 +22,25 @@ function requestListener(req, res) {
 
   try {
     if (method === "GET") {
+      let filepath;
+
       if (url === "/404") {
-        // res.setHeader('Content-Type', 'text/plain')
-        // res.statusCode = 404
-        res.writeHead(404, { "Content-Type": "application/json" });
-
-        res.write(
-          JSON.stringify({
-            message: "error handling your request!!!!!",
-          })
-        );
-        res.end();
+        filepath = path.join(__dirname, "public", "404.html");
       } else if (url === "/") {
-        res.setHeader("Content-Type", "text/html");
-        res.write(`
-          <form action='/message' method='POST'>
-            <h1>Write a message</h1>
-            <input type='text' name='msg'>
-            <button type='submit'>Send</button>
-
-          </form>`);
-        return res.end();
-      } else if (url === "/message" && method === "POST") {
-        fs.writeFileSync("message.js", "test");
-
-        res.write(`
-          <h1>message send</h1>
-          <form action='/send' method='GET'>
-            <p>${req.msg}</p>
-            <button type='submit'>Go</button>
-          </form>
-          `);
-        res.end();
+        filepath = path.join(__dirname, "public", "index.html");
+      } else if (url === "/about") {
+        filepath = path.join(__dirname, "public", "about.html");
       } else {
-        throw new Error("Method not allowed");
+        throw new Error("Page loading error");
       }
+
+      const data = await fs.readFile(filepath);
+      res.setHeader("Content-Type", "text/html");
+      res.write(data);
+      res.end();
+      
+    } else {
+      throw new Error("Method not allowed");
     }
   } catch (error) {
     res.writeHead(500, { "Content-Type": "application/json" });
@@ -60,7 +50,7 @@ function requestListener(req, res) {
         message: `error handling your request: ${error}`,
       })
     );
-    res.end();
+    return res.end();
   }
 }
 
